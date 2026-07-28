@@ -1,20 +1,24 @@
+/**
+ * [INPUT]: 依赖 React 状态、路由位置、货物审阅工作台与 ResultView 结果组件
+ * [OUTPUT]: 对外提供开始装箱页面 StartPackingView
+ * [POS]: views 模块中的装箱任务入口，负责清单上传、计算状态与结果切换
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { useState, useEffect, useRef } from "react";
-import { UploadCloud, ChevronRight, ChevronDown, Check, Download, Info, FileSpreadsheet, X, Loader2, Sparkles } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { UploadCloud, Check, Download, FileSpreadsheet, X, Loader2, Sparkles } from "lucide-react";
+import { useLocation } from "react-router";
 import { ResultView } from "../components/ResultView";
+import { CargoReviewWorkspace } from "./CargoReviewWorkspace";
+import { ParsingValidationView } from "./ParsingValidationView";
 
 export function StartPackingView() {
   const location = useLocation();
   const [isGenerated, setIsGenerated] = useState(location.state?.isGenerated || false);
-  const [tweaksOpen, setTweaksOpen] = useState(false);
   const [selectedContainers, setSelectedContainers] = useState<string[]>(["20GP"]);
   const [tailOptimization, setTailOptimization] = useState(true);
-  
-  const [strategy, setStrategy] = useState("重量优先");
-  const [isolationRules, setIsolationRules] = useState("UV,PS;PS,CTP");
 
   // New states for upload and calculation
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'calculating'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'parsing' | 'reviewing' | 'calculating'>('idle');
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState("");
   
@@ -68,7 +72,7 @@ export function StartPackingView() {
 
   const handleGenerate = () => {
     if (uploadStatus === 'uploaded') {
-      setUploadStatus('calculating');
+      setUploadStatus('parsing');
     }
   };
 
@@ -85,6 +89,19 @@ export function StartPackingView() {
     );
   }
 
+  if (uploadStatus === 'parsing') {
+    return <ParsingValidationView onComplete={() => setUploadStatus('reviewing')} />;
+  }
+
+  if (uploadStatus === 'reviewing') {
+    return (
+      <CargoReviewWorkspace
+        onBack={() => setUploadStatus('uploaded')}
+        onStartPacking={() => setUploadStatus('calculating')}
+      />
+    );
+  }
+
   if (uploadStatus === 'calculating') {
     return (
       <div className="h-full flex flex-col items-center justify-center p-10 mt-10">
@@ -97,8 +114,6 @@ export function StartPackingView() {
       </div>
     );
   }
-
-  const parsedRulesCount = isolationRules.split(";").map(r => r.trim()).filter(r => r.length > 0 && r.includes(",")).length;
 
   return (
     <div className="max-w-4xl pb-10">
@@ -182,91 +197,6 @@ export function StartPackingView() {
             </button>
           </div>
         )}
-
-        {/* Rule Summary */}
-        <div className="flex items-center gap-3 bg-blue-50/80 border border-blue-100 rounded-xl p-4 my-6">
-          <span className="text-blue-700 font-bold text-sm shrink-0 flex items-center gap-1.5">
-            <Check size={16} strokeWidth={3} /> 当前企业规则
-          </span>
-          <span className="text-slate-700 text-sm font-medium truncate">
-            川字托盘 · 自动新增尺寸 · 尾箱优化 · 20GP · 限重 26t
-          </span>
-          {localStorage.getItem("userRole") !== "user" && (
-            <Link to="/config" className="ml-auto text-blue-600 font-bold text-sm hover:underline whitespace-nowrap">
-              去调整 ›
-            </Link>
-          )}
-        </div>
-
-        {/* Temporary Tweaks */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
-          <button 
-            onClick={() => setTweaksOpen(!tweaksOpen)}
-            className="w-full flex items-center justify-between p-4 text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {tweaksOpen ? <ChevronDown size={16} strokeWidth={3} /> : <ChevronRight size={16} strokeWidth={3} />}
-              本次临时调整 <span className="text-slate-400 font-medium ml-1">（仅对这一单生效，不保存到企业规则）</span>
-            </div>
-            {!tweaksOpen && (
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                已设: {strategy} / {parsedRulesCount}条隔离
-              </span>
-            )}
-          </button>
-          
-          {tweaksOpen && (
-            <div className="p-5 pt-2 border-t border-slate-100 bg-white space-y-5">
-              
-              {/* Strategy */}
-              <div>
-                <div className="text-xs font-bold text-slate-700 mb-2">装载优先策略</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { n: "重量优先", d: "重货置底" },
-                    { n: "均衡分配", d: "各柜均匀" },
-                    { n: "尺寸匹配优先", d: "按尺寸分组" }
-                  ].map(opt => (
-                    <div 
-                      key={opt.n}
-                      onClick={() => setStrategy(opt.n)}
-                      className={`border-2 rounded-xl p-3 cursor-pointer transition-colors ${
-                        strategy === opt.n ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-300"
-                      }`}
-                    >
-                      <b className={`text-[13px] block ${strategy === opt.n ? "text-blue-800" : "text-slate-700"}`}>
-                        {opt.n} {strategy === opt.n && "✓"}
-                      </b>
-                      <p className="text-[11px] text-slate-500 mt-1 font-medium">{opt.d}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Isolation Rules */}
-              <div>
-                <div className="text-xs font-bold text-slate-700 mb-2">品类隔离规则</div>
-                <textarea 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                  rows={2}
-                  value={isolationRules}
-                  onChange={(e) => setIsolationRules(e.target.value)}
-                  placeholder="例如: UV,PS;PS,CTP"
-                />
-                <div className="flex items-center justify-between mt-1.5">
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    多组用分号隔开。此规则仅本次运算生效。
-                  </p>
-                  {isolationRules && (
-                    <div className="text-[11px] font-bold text-blue-600">
-                      已识别 {parsedRulesCount} 条规则
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
 
         <button 
           onClick={handleGenerate}
