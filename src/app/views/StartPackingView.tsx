@@ -80,11 +80,7 @@ export function StartPackingView() {
     // Show the result
     return (
       <div className="-m-8 lg:-m-10 h-screen flex flex-col relative">
-         <ResultView 
-           containerIds={selectedContainers}
-           tailOptimization={tailOptimization}
-           onReset={() => setIsGenerated(false)}
-         />
+         <ResultView containerIds={selectedContainers} tailOptimization={tailOptimization} />
       </div>
     );
   }

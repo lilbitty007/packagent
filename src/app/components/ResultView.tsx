@@ -1,12 +1,17 @@
+/**
+ * [INPUT]: 依赖集装箱选择、尾箱优化参数、三维装箱视图与方案对比弹窗
+ * [OUTPUT]: 对外提供装柜方案总览、单柜明细与方案对比入口 ResultView
+ * [POS]: components 模块中承接装柜计算结果的主展示组件
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, RotateCcw, Box as BoxIcon, Loader2, Sparkles, AlertTriangle, FileSpreadsheet, Info } from 'lucide-react';
-import { toast } from 'sonner';
+import { CheckCircle2, Box as BoxIcon, Loader2, Sparkles, AlertTriangle, BarChart3, Info } from 'lucide-react';
 import { Container3D } from './Container3D';
+import { SolutionComparisonDialog } from './SolutionComparisonDialog';
 
 interface ResultViewProps {
-  containerIds: string[];
-  tailOptimization: boolean;
-  onReset: () => void;
+  readonly containerIds: string[];
+  readonly tailOptimization: boolean;
 }
 
 function getTailContainerId(containerIds: string[]): string {
@@ -272,11 +277,12 @@ const getPalletTags = (pallet: any) => {
   return { isMixed, isLiquid, mainType, count: pallet.items.length };
 };
 
-export function ResultView({ containerIds, tailOptimization, onReset }: ResultViewProps) {
+export function ResultView({ containerIds, tailOptimization }: ResultViewProps) {
   const [generatedContainers, setGeneratedContainers] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(true);
   const [activeContainerId, setActiveContainerId] = useState<string>('overview');
   const [visMode, setVisMode] = useState<'2d' | '3d'>('2d');
+  const [comparisonOpen, setComparisonOpen] = useState(false);
 
   const baseIds = containerIds.length > 0 ? containerIds : ['20GP'];
   const { safeContainerIds, tailId } = useMemo(() => {
@@ -309,20 +315,6 @@ export function ResultView({ containerIds, tailOptimization, onReset }: ResultVi
     return () => clearInterval(timer);
   }, [safeContainerIds]);
 
-  const handleExport = () => {
-    const csvContent = "托盘号,型号,规格,层数,方向,净重(kg)\n1,UV-CTP,1030x770x600,4,正托,1200";
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '打包明细.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('打包明细已成功导出');
-  };
-
   return (
     <div className="absolute inset-0 flex flex-col p-6 md:p-8 max-w-[1400px] mx-auto w-full animate-in fade-in duration-500 overflow-hidden">
        {/* Header */}
@@ -348,22 +340,15 @@ export function ResultView({ containerIds, tailOptimization, onReset }: ResultVi
                 </p>
              </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button 
-               onClick={handleExport}
-               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors shadow-sm"
-            >
-               <FileSpreadsheet size={16} />
-               导出打包明细
-            </button>
-            <button 
-               onClick={onReset}
-               className="flex items-center gap-2 px-6 py-2 rounded-xl text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-700 transition-all font-medium text-sm shadow-sm"
-            >
-               <RotateCcw size={16} />
-               重新规划
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={isGenerating}
+            onClick={() => setComparisonOpen(true)}
+            className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <BarChart3 size={17} />
+            方案对比
+          </button>
        </div>
 
        {/* Container Tabs */}
@@ -649,6 +634,7 @@ export function ResultView({ containerIds, tailOptimization, onReset }: ResultVi
            </div>
          </div>
        )}
+      <SolutionComparisonDialog open={comparisonOpen} onClose={() => setComparisonOpen(false)} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 React 状态、解析阶段数据与 Lucide 图标
+ * [INPUT]: 依赖 React 状态、四阶段解析文案与 Lucide 图标
  * [OUTPUT]: 对外提供解析校验动画 ParsingValidationView
- * [POS]: 上传成功后、进入货物审阅前的解析过程反馈页
+ * [POS]: 上传完成后、进入货物审阅前的解析过程反馈页
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { useEffect, useState } from "react";
@@ -23,7 +23,7 @@ export function ParsingValidationView({ onComplete }: { onComplete: () => void }
         }
         return current + 1;
       });
-    }, 550);
+    }, 800);
     return () => window.clearInterval(timer);
   }, [onComplete]);
 
@@ -34,14 +34,11 @@ export function ParsingValidationView({ onComplete }: { onComplete: () => void }
           <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center relative overflow-hidden">
             <FileSpreadsheet size={34} className="text-blue-600" />
             <div className="absolute inset-x-3 bottom-3 h-1.5 rounded-full bg-blue-100 overflow-hidden">
-              <div
-                className="h-full bg-blue-500 transition-all duration-500"
-                style={{ width: `${((stage + 1) / parsingStages.length) * 100}%` }}
-              />
+              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((stage + 1) / parsingStages.length) * 100}%` }} />
             </div>
           </div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">正在解析并校验货物清单</h1>
-          <p className="mt-2 text-sm font-medium text-slate-500">逐项还原件级数据，只把需要人工判断的内容送入审阅</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">数据逐行进入审阅表，六个关键字段依次完成校验</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -50,16 +47,7 @@ export function ParsingValidationView({ onComplete }: { onComplete: () => void }
               const completed = index < stage || done;
               const active = index === stage && !done;
               return (
-                <div
-                  key={item}
-                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                    completed
-                      ? "border-green-100 bg-green-50"
-                      : active
-                        ? "border-blue-200 bg-blue-50"
-                        : "border-slate-100 bg-slate-50"
-                  }`}
-                >
+                <div key={item} className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${completed ? "border-green-100 bg-green-50" : active ? "border-blue-200 bg-blue-50" : "border-slate-100 bg-slate-50"}`}>
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${completed ? "bg-green-500 text-white" : active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-400"}`}>
                     {completed ? <Check size={15} strokeWidth={3} /> : <span className="text-xs font-black">{index + 1}</span>}
                   </div>
@@ -69,11 +57,10 @@ export function ParsingValidationView({ onComplete }: { onComplete: () => void }
               );
             })}
           </div>
-
           {done && (
             <div className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-slate-50 border border-slate-100 p-3 text-sm font-bold text-slate-700">
               <CheckCircle2 size={18} className="text-green-500" />
-              解析 137 行 → 还原 105 件，其中 18 项需人工确认
+              解析 105 件，其中 12 项需确认
             </div>
           )}
         </div>
